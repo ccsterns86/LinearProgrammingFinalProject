@@ -1,4 +1,8 @@
 # Parser.py is meant to parse the applicant data into easily usable components
+# Input csv file: 
+#   - Name
+#   - Major needs to be standardized
+#   - Interview times cannot have commas in the name
 
 # To run this program, you have to have python installed on your computer. 
 # You may have to install some other packages (pandas, random)
@@ -10,12 +14,13 @@
 import sys
 import pandas as pd
 import random
-import numpy
+import numpy as np
 import cvxopt
 
 num_interviews = 27
 # This is the name of the column that contains availability in the csv file.
 availability_col = "Interviews availability"
+major_col = "Major"
 # These are the dates and times from the csv file. Make sure they don't have a comma!
 day1 = [
         "Monday April 1st - 6:00-7:00 pm", 
@@ -57,3 +62,15 @@ print(apps.head(n=10))
 #When turning this into arrays, we can make multiple different arrays
 A = apps.iloc[:, initial_num_cols:].to_numpy()
 print(A)
+
+interview_num_cols = apps.shape[1]
+
+# Go through the applicants and extract majors
+# TODO: fix the funky .loc warning
+for index, applicant in apps.iterrows():
+    majors = applicant[major_col].split(", ")
+    for major in majors:
+        apps.loc[index, major] = 1
+
+M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
+print(M)
