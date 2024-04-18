@@ -15,7 +15,7 @@ import sys
 import pandas as pd
 import random
 import numpy as np
-import cvxopt
+import pulp
 
 num_interviews = 27
 # This is the name of the column that contains availability in the csv file.
