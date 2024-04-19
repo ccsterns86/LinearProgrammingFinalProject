@@ -66,11 +66,19 @@ print(A)
 interview_num_cols = apps.shape[1]
 
 # Go through the applicants and extract majors
-# TODO: fix the funky .loc warning
+interview_num_cols = apps.shape[1]
 for index, applicant in apps.iterrows():
     majors = applicant[major_col].split(", ")
     for major in majors:
-        apps.loc[index, major] = 1
+        if major in apps.columns:
+                apps.loc[index, major] = 1
+        else:
+                col = apps.shape[1]
+                apps.insert(col, major, 0)
+                apps.loc[index, major] = 1
+                
+M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
+print(M)
 
 M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
 print(M)

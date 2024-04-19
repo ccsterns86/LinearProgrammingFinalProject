@@ -1,4 +1,4 @@
-# BasicScheduling.py is meant to parse the applicant data into easily usable components
+# ScheduleMax.py is meant to parse the applicant data into easily usable components
 # Input csv file: 
 #   - Name
 #   - Major needs to be standardized
@@ -7,9 +7,9 @@
 # To run this program, you have to have python installed on your computer. 
 # You may have to install some other packages (pandas, random)
 # You run the command:
-#       python3 .\BasicScheduling.py "<csv file>"
+#       python3 .\ScheduleMax.py "<csv file>"
 # Example:
-#       python3 .\BasicScheduling.py ".\Applications.csv" 
+#       python3 .\ScheduleMax.py ".\Applications.csv" 
 
 import sys
 import pandas as pd
@@ -17,7 +17,7 @@ import random
 import numpy as np
 from pulp import *
 
-num_interviews = 27
+num_interviews = 6
 # This is the name of the column that contains availability in the csv file.
 name_col = "Applicant"
 availability_col = "Interviews availability"
@@ -51,8 +51,6 @@ data = pd.read_csv(apps_file)
 
 # Grab 27 applicants from the file
 apps = data.head(n=num_interviews)
-# This will randomize the applicants grabbed.
-# apps = data.sample(n=num_interviews)
 
 initial_num_cols = apps.shape[1]
 for day in days:
@@ -69,34 +67,70 @@ for index, applicant in apps.iterrows():
 # A is the availability of the applicants
 A = apps.iloc[:, initial_num_cols:].to_numpy()
 
+# Go through the applicants and extract majors
+interview_num_cols = apps.shape[1]
+for index, applicant in apps.iterrows():
+    majors = applicant[major_col].split(", ")
+    for major in majors:
+        if major in apps.columns:
+                apps.loc[index, major] = 1
+        else:
+                col = apps.shape[1]
+                apps.insert(col, major, 0)
+                apps.loc[index, major] = 1
+M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
+# print(M)
+
 model = LpProblem("Scheduling_Problem", LpMaximize)
 
 # Variables
 x = LpVariable.dicts("Interview", [(i,j) for i in range(len(A)) for j in range(len(A[0]))], cat='Binary')
+majorDay = LpVariable.dicts("MajorOnDay", [(i,j) for i in range(len(days)) for j in range(len(M[0]))], cat='Binary')
 
 # Objective Function
 model += lpSum([x[i,j]*A[i,j] for i in range(len(A)) for j in range(len(A[0]))])
 
 # Constraints
-for i in range(len(A)):
+for i in range(len(A)): # Interveiwee can only be scheduled once
         model += lpSum([x[i,j]*A[i,j] for j in range(len(A[0]))]) <= 1
-for j in range(len(A[0])):
+for j in range(len(A[0])): # 3 interviewees can be scheduled per hour
         model += lpSum([x[i,j]*A[i,j] for i in range(len(A))]) <= 3
 
+day_index = 0
+day_num = 0
+for day in days:
+        dayRange = range(day_index, day_index+len(day))
+        for major in range(len(M[0])):
+                model += lpSum([x[i,j]*M[i,major] for i in range(len(A)) for j in dayRange]) >= majorDay[day_num, major]
+        day_index += len(day)
+        day_num += 1
 # Solve the problem
 model.solve()
 
 # Print the results
 print("Status:", LpStatus[model.status])
 schedule = np.zeros((len(A), len(A[0])))
-for i in range(len(A)):
+for i in range(len(A)): # Get the schedule
      for j in range(len(A[0])):
           if (x[i,j].varValue == 1): schedule[i, j] = 1
-print(schedule)   
+print("Schedule: ", schedule)   
 
-# for var in model.variables():
-#     if var.varValue == 1:
-#         print(var.name, " = ", var.varValue)
-print("Number of interviews scheduled: ", value(model.objective))
+# Get the variables of if a major is scheduled on a day
+majorScheduled = np.zeros((len(days), len(M[0])))
+for i in range(len(days)):
+      for m in range(len(M[0])):
+            if (majorDay[i,m] == 1): majorScheduled[i,m] = 1
+print("Major: \n", M)
+print("Major Scheduled: \n", majorScheduled)
+day_index = 0
+day_num = 0
+for day in days:
+        dayRange = range(day_index, day_index+len(day))
+        for major in range(len(M[0])):
+                print(np.sum([schedule[i,j]*M[i,major] for i in range(len(A)) for j in dayRange]), ">=", majorScheduled[day_num, major])
+        day_index += len(day)
+        day_num += 1
+
+print("Number of interviews scheduled: \n", value(model.objective))
 
 printSchedule(schedule)
