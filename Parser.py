@@ -76,7 +76,7 @@ for index, applicant in apps.iterrows():
                 col = apps.shape[1]
                 apps.insert(col, major, 0)
                 apps.loc[index, major] = 1
-                
+
 M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
 print(M)
 

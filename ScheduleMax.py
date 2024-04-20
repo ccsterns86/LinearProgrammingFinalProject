@@ -17,7 +17,7 @@ import random
 import numpy as np
 from pulp import *
 
-num_interviews = 6
+num_interviews = 27
 # This is the name of the column that contains availability in the csv file.
 name_col = "Applicant"
 availability_col = "Interviews availability"
@@ -85,25 +85,34 @@ model = LpProblem("Scheduling_Problem", LpMaximize)
 
 # Variables
 x = LpVariable.dicts("Interview", [(i,j) for i in range(len(A)) for j in range(len(A[0]))], cat='Binary')
-majorDay = LpVariable.dicts("MajorOnDay", [(i,j) for i in range(len(days)) for j in range(len(M[0]))], cat='Binary')
+majorDay = LpVariable.dicts("MajorOnDay", [(i,j) for i in range(len(M[0])) for j in range(len(days))], cat='Integer')
+maxCountIndicator = LpVariable.dicts("MaxCountIndicator", [(i,j) for i in range(len(M[0])) for j in range(len(days))], cat='Binary')
+maxMajorCount = LpVariable.dicts("MaxMajorCount", [(1,m) for m in range(len(M[0]))], cat='Integer')
+bigM = 99999
 
 # Objective Function
-model += lpSum([x[i,j]*A[i,j] for i in range(len(A)) for j in range(len(A[0]))])
+model += lpSum(maxMajorCount[1,m] for m in range(len(M[0])))
+#lpSum([maxMajorCount[1,m] for m in range(len(M[0]))])
 
 # Constraints
+# Make sure that everyone is scheduled
+model += lpSum(x[i,j]*A[i,j] for j in range(len(A[0])) for i in range(len(A))) == num_interviews
 for i in range(len(A)): # Interveiwee can only be scheduled once
-        model += lpSum([x[i,j]*A[i,j] for j in range(len(A[0]))]) <= 1
+        model += lpSum([x[i,j] for j in range(len(A[0]))]) <= 1
 for j in range(len(A[0])): # 3 interviewees can be scheduled per hour
-        model += lpSum([x[i,j]*A[i,j] for i in range(len(A))]) <= 3
+        model += lpSum([x[i,j] for i in range(len(A))]) <= 3
 
-day_index = 0
-day_num = 0
-for day in days:
-        dayRange = range(day_index, day_index+len(day))
-        for major in range(len(M[0])):
-                model += lpSum([x[i,j]*M[i,major] for i in range(len(A)) for j in dayRange]) >= majorDay[day_num, major]
-        day_index += len(day)
-        day_num += 1
+for major in range(len(M[0])): # For summing the number of applicants for a major scheduled on a day.
+      day_index = 0
+      for day in range(len(days)):
+            dayRange = range(day_index, day_index+len(days[day]))
+            model += lpSum(x[i,j]*M[i,major] for j in dayRange for i in range(len(A))) == majorDay[major, day]
+            day_index += len(days[day])
+
+for major in range(len(M[0])): # Max(the sum of the number of applicants for a major on a day)
+      model += lpSum(maxCountIndicator[major, d] for d in range(len(days))) == len(days)-1
+      for day in range(len(days)):
+            model += maxMajorCount[1, major] <= majorDay[major, day] + M*maxCountIndicator[major, day]
 # Solve the problem
 model.solve()
 
@@ -113,24 +122,22 @@ schedule = np.zeros((len(A), len(A[0])))
 for i in range(len(A)): # Get the schedule
      for j in range(len(A[0])):
           if (x[i,j].varValue == 1): schedule[i, j] = 1
-print("Schedule: ", schedule)   
+#print("Schedule: \n", schedule) 
+#print("Availability: \n", A)  
 
 # Get the variables of if a major is scheduled on a day
-majorScheduled = np.zeros((len(days), len(M[0])))
-for i in range(len(days)):
-      for m in range(len(M[0])):
-            if (majorDay[i,m] == 1): majorScheduled[i,m] = 1
-print("Major: \n", M)
-print("Major Scheduled: \n", majorScheduled)
-day_index = 0
-day_num = 0
-for day in days:
-        dayRange = range(day_index, day_index+len(day))
-        for major in range(len(M[0])):
-                print(np.sum([schedule[i,j]*M[i,major] for i in range(len(A)) for j in dayRange]), ">=", majorScheduled[day_num, major])
-        day_index += len(day)
-        day_num += 1
+majorScheduled = np.zeros((len(M[0]), len(days)))
+for m in range(len(M[0])):
+        for i in range(len(days)):
+            if (majorDay[m,i].varValue > 0): majorScheduled[m,i] = majorDay[m,i].varValue
+#print("Major: \n", M)
+#print("Major Scheduled: \n", majorScheduled)
 
-print("Number of interviews scheduled: \n", value(model.objective))
+maxCount = np.zeros((len(M[0])))
+for m in range(len(M[0])):
+      if (maxMajorCount[1,m].varValue > 0): maxCount[m] = maxMajorCount[1,m].varValue
+#print("MaxCounts: \n", maxCount)
+
+#print("Optimized value:", value(model.objective))
 
 printSchedule(schedule)

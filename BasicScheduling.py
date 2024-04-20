@@ -79,9 +79,9 @@ model += lpSum([x[i,j]*A[i,j] for i in range(len(A)) for j in range(len(A[0]))])
 
 # Constraints
 for i in range(len(A)):
-        model += lpSum([x[i,j]*A[i,j] for j in range(len(A[0]))]) <= 1
+        model += lpSum([x[i,j] for j in range(len(A[0]))]) <= 1
 for j in range(len(A[0])):
-        model += lpSum([x[i,j]*A[i,j] for i in range(len(A))]) <= 3
+        model += lpSum([x[i,j] for i in range(len(A))]) <= 3
 
 # Solve the problem
 model.solve()
