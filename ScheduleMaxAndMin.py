@@ -7,9 +7,9 @@
 # To run this program, you have to have python installed on your computer. 
 # You may have to install some other packages (pandas, random)
 # You run the command:
-#       python3 .\ScheduleMin.py "<csv file>"
+#       python3 .\ScheduleMaxAndMin.py "<csv file>"
 # Example:
-#       python3 .\ScheduleMin.py ".\Applications.csv" 
+#       python3 .\ScheduleMaxAndMin.py ".\Applications.csv" 
 
 import sys
 import pandas as pd
@@ -81,18 +81,20 @@ for index, applicant in apps.iterrows():
 M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
 # print(M)
 
-################################################### ILP
+############################################ ILP
 
-model = LpProblem("Scheduling_Problem", LpMinimize)
+model = LpProblem("Scheduling_Problem", LpMaximize)
 
 # Variables
 x = LpVariable.dicts("Interview", [(i,j) for i in range(len(A)) for j in range(len(A[0]))], cat='Binary')
-majorDay = LpVariable.dicts("MajorOnDay", [(m,d) for m in range(len(M[0])) for d in range(len(days))], cat='Integer')
-majorDayIndicator = LpVariable.dicts("MaxCountIndicator", [(m,d) for m in range(len(M[0])) for d in range(len(days))], cat='Binary')
+majorDay = LpVariable.dicts("MajorOnDay", [(i,j) for i in range(len(M[0])) for j in range(len(days))], cat='Integer')
+maxCountIndicator = LpVariable.dicts("MaxCountIndicator", [(i,j) for i in range(len(M[0])) for j in range(len(days))], cat='Binary')
+maxMajorCount = LpVariable.dicts("MaxMajorCount", [(1,m) for m in range(len(M[0]))], cat='Integer')
+majorDayIndicator = LpVariable.dicts("MajorCountIndicator", [(m,d) for m in range(len(M[0])) for d in range(len(days))], cat='Binary')
 bigM = 99999
 
 # Objective Function
-model += lpSum(majorDayIndicator[m, d] for m in range(len(M[0])) for d in range(len(days)))
+model += lpSum(maxMajorCount[1,m] for m in range(len(M[0]))) - lpSum(majorDayIndicator[m, d] for m in range(len(M[0])) for d in range(len(days)))
 
 # Constraints
 # Make sure that everyone is scheduled
@@ -108,16 +110,19 @@ for major in range(len(M[0])): # For summing the number of applicants for a majo
       for day in range(len(days)):
             dayRange = range(day_index, day_index+len(days[day]))
             model += lpSum(x[i,j]*M[i,major] for j in dayRange for i in range(len(A))) == majorDay[major, day]
+            model += majorDay[major, day] <= majorDayIndicator[major, day] * bigM
+            # Max(the sum of the number of applicants for a major on a day)
+
             day_index += len(days[day])
 
-for major in range(len(M[0])): # Indicator var if applicants of specific major scheduled on that day.
+for major in range(len(M[0])): # Max(the sum of the number of applicants for a major on a day)
+      model += lpSum(maxCountIndicator[major, d] for d in range(len(days))) == len(days)-1
       for day in range(len(days)):
-            model += majorDay[major, day] <= bigM*majorDayIndicator[major, day]
-
+            model += maxMajorCount[1, major] <= majorDay[major, day] + bigM*maxCountIndicator[major, day]
 # Solve the problem
 model.solve()
 
-#######################################################
+###############################################################
 
 # Print the results
 print("Status:", LpStatus[model.status])
@@ -126,7 +131,7 @@ for i in range(len(A)): # Get the schedule
      for j in range(len(A[0])):
           if (x[i,j].varValue == 1): schedule[i, j] = 1
 print("Schedule: \n", schedule) 
-print("Availability: \n", A)  
+#print("Availability: \n", A)  
 
 # Get the variables of if a major is scheduled on a day
 majorScheduled = np.zeros((len(M[0]), len(days)))
@@ -139,6 +144,12 @@ print("Major: \n", M)
 print("Major Scheduled: \n", majorScheduled)
 print("Major indicator: \n", majorIndicator)
 
-print("Optimized value:", value(model.objective))
+
+maxCount = np.zeros((len(M[0])))
+for m in range(len(M[0])):
+      if (maxMajorCount[1,m].varValue > 0): maxCount[m] = maxMajorCount[1,m].varValue
+print("MaxCounts: \n", maxCount)
+
+#print("Optimized value:", value(model.objective))
 
 printSchedule(schedule)

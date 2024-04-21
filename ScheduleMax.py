@@ -81,6 +81,8 @@ for index, applicant in apps.iterrows():
 M = np.nan_to_num(apps.iloc[:, interview_num_cols:].to_numpy())
 # print(M)
 
+############################################ ILP
+
 model = LpProblem("Scheduling_Problem", LpMaximize)
 
 # Variables
@@ -92,7 +94,6 @@ bigM = 99999
 
 # Objective Function
 model += lpSum(maxMajorCount[1,m] for m in range(len(M[0])))
-#lpSum([maxMajorCount[1,m] for m in range(len(M[0]))])
 
 # Constraints
 # Make sure that everyone is scheduled
@@ -112,7 +113,7 @@ for major in range(len(M[0])): # For summing the number of applicants for a majo
 for major in range(len(M[0])): # Max(the sum of the number of applicants for a major on a day)
       model += lpSum(maxCountIndicator[major, d] for d in range(len(days))) == len(days)-1
       for day in range(len(days)):
-            model += maxMajorCount[1, major] <= majorDay[major, day] + M*maxCountIndicator[major, day]
+            model += maxMajorCount[1, major] <= majorDay[major, day] + bigM*maxCountIndicator[major, day]
 # Solve the problem
 model.solve()
 
