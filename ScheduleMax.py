@@ -44,6 +44,8 @@ def printSchedule(schedule):
          interviewees = np.where(schedule[:, slot] == 1)[0]
          names = [apps.loc[i, name_col] for i in interviewees]
          print(timeSlots[slot], "-", names) 
+         majors = [apps.loc[i, major_col] for i in interviewees]
+         print(majors)
 
 # Input (should be cvs file)
 apps_file = sys.argv[1]
@@ -125,7 +127,7 @@ schedule = np.zeros((len(A), len(A[0])))
 for i in range(len(A)): # Get the schedule
      for j in range(len(A[0])):
           if (x[i,j].varValue == 1): schedule[i, j] = 1
-#print("Schedule: \n", schedule) 
+print("Schedule: \n", schedule) 
 #print("Availability: \n", A)  
 
 # Get the variables of if a major is scheduled on a day
@@ -133,13 +135,13 @@ majorScheduled = np.zeros((len(M[0]), len(days)))
 for m in range(len(M[0])):
         for i in range(len(days)):
             if (majorDay[m,i].varValue > 0): majorScheduled[m,i] = majorDay[m,i].varValue
-#print("Major: \n", M)
-#print("Major Scheduled: \n", majorScheduled)
+print("Major: \n", M)
+print("Major Scheduled: \n", majorScheduled)
 
 maxCount = np.zeros((len(M[0])))
 for m in range(len(M[0])):
       if (maxMajorCount[1,m].varValue > 0): maxCount[m] = maxMajorCount[1,m].varValue
-#print("MaxCounts: \n", maxCount)
+print("MaxCounts: \n", maxCount)
 
 #print("Optimized value:", value(model.objective))
 

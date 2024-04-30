@@ -44,6 +44,8 @@ def printSchedule(schedule):
          interviewees = np.where(schedule[:, slot] == 1)[0]
          names = [apps.loc[i, name_col] for i in interviewees]
          print(timeSlots[slot], "-", names) 
+         majors = [apps.loc[i, major_col] for i in interviewees]
+         print(majors)
 
 # Input (should be cvs file)
 apps_file = sys.argv[1]
